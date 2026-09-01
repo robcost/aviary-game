@@ -9,6 +9,11 @@ north-west mountain range, and arid eastern plateau country, all under a
 golden-hour sky. Every asset is procedural — no downloaded textures, models,
 or sounds.
 
+<p align="center">
+  <img src="screenshots/menu.jpg" alt="Aviary species-select screen" width="49%" />
+  <img src="screenshots/flight.jpg" alt="Flying over the north-west range" width="49%" />
+</p>
+
 ## Running locally
 
 ```bash
