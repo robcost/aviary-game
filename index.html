@@ -1,0 +1,1083 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#17253f" />
+    <title>Aviary</title>
+    <style>
+      /* ============================================================
+         Aviary — presentation layer stylesheet.
+         Owned by the UI module (src/ui/UI.ts builds the DOM,
+         this sheet styles it). Design language: warm Australian
+         dusk gold over deep slate glass, cinematic wide tracking,
+         serif Latin names, one accent colour per species.
+         ============================================================ */
+
+      :root {
+        --gold: #e8c47a;
+        --gold-bright: #ffe3a3;
+        --ink: #0a0e12;
+        --paper: #f4efe6;
+        --glass-bg: linear-gradient(160deg, rgba(16, 22, 28, 0.55), rgba(10, 14, 18, 0.38));
+        --glass-border: rgba(255, 255, 255, 0.14);
+        --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        --font:
+          -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Inter, Roboto,
+          'Helvetica Neue', sans-serif;
+        --font-serif: 'Iowan Old Style', 'Palatino Nova', Palatino, Georgia, 'Times New Roman',
+          serif;
+        --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+        /* Dawn sky hold, shown from t=0 until the first rendered frame.
+           Shared by the body (visible while scripts load, before any JS
+           runs) and .boot-fade (the JS-era hold), so the whole boot reads
+           as one continuous graded sky — never a black screen. On slow
+           hardware this hold can stay up for many seconds, so every stop is
+           deliberately luminous: a screenshot taken mid-boot must read as a
+           designed dawn sky, not near-black. The top stop stays deep enough
+           to carry the gold wordmark. */
+        --boot-sky:
+          radial-gradient(
+            120% 85% at 50% 100%,
+            rgba(255, 199, 122, 0.5) 0%,
+            rgba(226, 137, 84, 0.26) 38%,
+            transparent 66%
+          ),
+          linear-gradient(to bottom, #17253f 0%, #2d3f63 42%, #55537b 70%, #8f6a6d 100%);
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background-color: #17253f;
+        background-image: var(--boot-sky);
+      }
+
+      #app canvas {
+        display: block;
+      }
+
+      #ui {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        font-family: var(--font);
+        color: var(--paper);
+        -webkit-font-smoothing: antialiased;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      #ui .panel {
+        pointer-events: auto;
+      }
+
+      .wing-mark {
+        display: block;
+        width: 44px;
+        height: 22px;
+      }
+
+      /* ---------------------------------------------------------- */
+      /* Boot fade                                                  */
+      /* ---------------------------------------------------------- */
+
+      .boot-fade {
+        position: absolute;
+        inset: 0;
+        background-color: #17253f;
+        background-image: var(--boot-sky);
+        opacity: 1;
+        transition: opacity 1.5s ease-out;
+        z-index: 60;
+      }
+
+      /* Quiet wordmark while the world loads: brand moment, not a spinner. */
+      .boot-fade::after {
+        content: 'AVIARY';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 46%;
+        text-align: center;
+        font-family: var(--font);
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0.62em;
+        text-indent: 0.62em;
+        color: var(--gold);
+        opacity: 0.55;
+        animation: boot-breathe 2.6s ease-in-out infinite;
+      }
+
+      @keyframes boot-breathe {
+        0%,
+        100% {
+          opacity: 0.35;
+        }
+        50% {
+          opacity: 0.7;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .boot-fade::after {
+          animation: none;
+        }
+      }
+
+      .boot-fade.gone {
+        opacity: 0;
+      }
+
+      /* ---------------------------------------------------------- */
+      /* Launch transition                                          */
+      /* ---------------------------------------------------------- */
+
+      .launch-veil {
+        position: absolute;
+        inset: 0;
+        z-index: 45;
+        pointer-events: none;
+        background:
+          radial-gradient(90% 70% at 50% 46%, rgba(255, 227, 163, 0.5) 0%, transparent 62%),
+          radial-gradient(140% 110% at 50% 50%, rgba(255, 244, 219, 0.28) 0%, transparent 74%);
+        opacity: 0;
+        animation: launch-bloom 1.7s var(--ease-out) both;
+      }
+
+      @keyframes launch-bloom {
+        0% {
+          opacity: 0;
+          transform: scale(1.05);
+        }
+        28% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(0.98);
+        }
+      }
+
+      /* ---------------------------------------------------------- */
+      /* Title screen                                               */
+      /* ---------------------------------------------------------- */
+
+      .menu {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        padding: clamp(14px, 4vh, 56px) clamp(16px, 4vw, 64px) clamp(16px, 4.5vh, 56px);
+        box-sizing: border-box;
+        /* Golden-hour grade over the live scene (top layer first):
+           1. bottom scrim — anchors the card row, guarantees stat-bar contrast
+           2. low warm glow — the sun sitting on the horizon behind the cards
+           3. full-frame grade — cool dusk blue up top, amber wash below
+           4. corner vignette — frames the gold typography */
+        background:
+          linear-gradient(
+            to top,
+            rgba(6, 6, 10, 0.92) 0%,
+            rgba(7, 7, 11, 0.58) 18%,
+            rgba(7, 7, 11, 0) 46%
+          ),
+          radial-gradient(
+            120% 85% at 50% 100%,
+            rgba(255, 148, 54, 0.4) 0%,
+            rgba(255, 118, 40, 0.16) 34%,
+            transparent 62%
+          ),
+          linear-gradient(
+            to bottom,
+            rgba(15, 26, 52, 0.6) 0%,
+            rgba(28, 28, 44, 0.26) 32%,
+            rgba(255, 142, 52, 0.1) 60%,
+            rgba(98, 44, 14, 0.28) 100%
+          ),
+          radial-gradient(130% 95% at 50% 32%, rgba(5, 8, 16, 0) 40%, rgba(5, 8, 16, 0.55) 100%);
+        /* Re-grade the live scene itself to golden hour: warm the pale sky,
+           lift saturation. Menu-only, so the cost never touches gameplay.
+           Fades back to neutral on exit so flight starts un-graded. */
+        backdrop-filter: saturate(1.35) sepia(0.24) hue-rotate(-8deg) contrast(1.05);
+        -webkit-backdrop-filter: saturate(1.35) sepia(0.24) hue-rotate(-8deg) contrast(1.05);
+        z-index: 40;
+        opacity: 1;
+        transition:
+          opacity 1s ease,
+          backdrop-filter 1.1s ease,
+          -webkit-backdrop-filter 1.1s ease;
+        /* Last-resort: on extreme aspect ratios the menu scrolls internally
+           instead of clipping the cards at the viewport edge. */
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: none;
+      }
+
+      .menu::-webkit-scrollbar {
+        display: none;
+      }
+
+      .menu.exit {
+        opacity: 0;
+        pointer-events: none !important;
+        backdrop-filter: saturate(1) sepia(0) hue-rotate(0deg) contrast(1);
+        -webkit-backdrop-filter: saturate(1) sepia(0) hue-rotate(0deg) contrast(1);
+      }
+
+      .menu-head {
+        text-align: center;
+        margin-top: clamp(0px, 2.6vh, 32px);
+        animation: rise-in 1.3s var(--ease-out) both;
+      }
+
+      .menu-mark {
+        display: flex;
+        justify-content: center;
+        margin-bottom: clamp(8px, 1.6vh, 16px);
+        color: var(--gold);
+        opacity: 0.9;
+        filter: drop-shadow(0 0 14px rgba(232, 196, 122, 0.5));
+        animation: rise-in 1.5s var(--ease-out) both;
+      }
+
+      .menu-mark .wing-mark {
+        width: 56px;
+        height: 28px;
+      }
+
+      .menu-eyebrow {
+        font-size: clamp(10px, 1.1vw, 13px);
+        font-weight: 500;
+        letter-spacing: 0.55em;
+        text-indent: 0.55em; /* re-center the tracked text */
+        text-transform: uppercase;
+        color: rgba(244, 239, 230, 0.72);
+        text-shadow: 0 1px 12px rgba(4, 8, 14, 0.55);
+        margin-bottom: clamp(8px, 1.6vh, 18px);
+      }
+
+      .menu-title {
+        margin: 0;
+        /* vh term compresses the title on short viewports before the cards
+           can run out of room; vw term still rules on narrow screens. */
+        font-size: clamp(44px, min(10vw, 13.5vh), 124px);
+        font-weight: 200;
+        line-height: 1;
+        letter-spacing: 0.42em;
+        text-indent: 0.42em;
+        background: linear-gradient(180deg, #ffffff 12%, var(--gold-bright) 58%, #b78d4a 105%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: var(--gold-bright);
+        filter: drop-shadow(0 4px 26px rgba(232, 196, 122, 0.28));
+        animation: title-track 1.8s var(--ease-out) both;
+      }
+
+      .menu-rule {
+        width: clamp(140px, 22vw, 300px);
+        height: 1px;
+        margin: clamp(12px, 2.2vh, 24px) auto 0;
+        background: linear-gradient(90deg, transparent, rgba(232, 196, 122, 0.75), transparent);
+      }
+
+      .menu-sub {
+        margin-top: clamp(8px, 1.4vh, 14px);
+        font-size: clamp(11px, 1.1vw, 14px);
+        font-weight: 400;
+        letter-spacing: 0.3em;
+        text-indent: 0.3em;
+        text-transform: uppercase;
+        color: rgba(244, 239, 230, 0.68);
+        text-shadow: 0 1px 12px rgba(4, 8, 14, 0.6);
+      }
+
+      @keyframes title-track {
+        0% {
+          opacity: 0;
+          letter-spacing: 0.62em;
+          text-indent: 0.62em;
+        }
+        100% {
+          opacity: 1;
+          letter-spacing: 0.42em;
+          text-indent: 0.42em;
+        }
+      }
+
+      @keyframes rise-in {
+        0% {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ----- species cards ----- */
+
+      /* One row, always: the five cards shrink together instead of wrapping,
+         so the row's height is fixed by its content and can never stack into
+         a column that runs off the bottom of the viewport. */
+      .cards {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: center;
+        align-items: stretch;
+        gap: clamp(8px, 1.4vw, 20px);
+        width: 100%;
+        max-width: 1500px;
+        box-sizing: border-box;
+      }
+
+      .card {
+        --accent: var(--gold);
+        --accent-glow: rgba(232, 196, 122, 0.45);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 11px;
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: 238px;
+        padding: clamp(14px, 1.8vw, 24px);
+        box-sizing: border-box;
+        border-radius: 18px;
+        border: 1px solid var(--glass-border);
+        background: var(--glass-bg);
+        backdrop-filter: blur(18px) saturate(1.35);
+        -webkit-backdrop-filter: blur(18px) saturate(1.35);
+        box-shadow:
+          var(--glass-highlight),
+          0 18px 50px rgba(0, 0, 0, 0.42);
+        color: var(--paper);
+        font-family: inherit;
+        text-align: left;
+        cursor: pointer;
+        opacity: 0;
+        transform: translateY(26px);
+        transition:
+          transform 0.45s var(--ease-out),
+          border-color 0.35s ease,
+          box-shadow 0.45s ease,
+          opacity 0.6s ease;
+      }
+
+      .cards.in .card {
+        opacity: 1;
+        transform: translateY(0);
+        transition:
+          transform 0.9s var(--ease-out) calc(var(--i) * 90ms),
+          opacity 0.9s ease calc(var(--i) * 90ms);
+      }
+
+      .cards.in .card:hover,
+      .cards.in .card:focus-visible {
+        transform: translateY(-8px);
+        border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+        box-shadow:
+          var(--glass-highlight),
+          0 26px 60px rgba(0, 0, 0, 0.5),
+          0 0 44px color-mix(in srgb, var(--accent-glow) 40%, transparent);
+        transition:
+          transform 0.35s var(--ease-out),
+          border-color 0.25s ease,
+          box-shadow 0.35s ease;
+        outline: none;
+      }
+
+      .card::after {
+        /* sheen sweep on hover */
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: linear-gradient(
+          115deg,
+          transparent 30%,
+          rgba(255, 255, 255, 0.07) 48%,
+          transparent 62%
+        );
+        background-size: 260% 100%;
+        background-position: 120% 0;
+        transition: background-position 0.9s ease;
+        pointer-events: none;
+      }
+
+      .card:hover::after {
+        background-position: -60% 0;
+      }
+
+      .card.selected {
+        border-color: var(--accent);
+        box-shadow:
+          var(--glass-highlight),
+          0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent),
+          0 0 70px var(--accent-glow);
+      }
+
+      .menu.exit .card:not(.selected) {
+        opacity: 0;
+        transform: translateY(14px) scale(0.97);
+      }
+
+      .card-glyph {
+        display: block;
+        color: var(--accent);
+        opacity: 0.85;
+        filter: drop-shadow(0 0 10px var(--accent-glow));
+        transition: opacity 0.3s ease, transform 0.5s var(--ease-out);
+      }
+
+      .card-glyph .wing-mark {
+        width: 38px;
+        height: 19px;
+      }
+
+      .card:hover .card-glyph,
+      .card:focus-visible .card-glyph {
+        opacity: 1;
+        transform: translateY(-2px);
+      }
+
+      .card-name {
+        font-size: clamp(15px, 1.35vw, 18px);
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #fff;
+      }
+
+      .card-latin {
+        display: block;
+        margin-top: 4px;
+        font-family: var(--font-serif);
+        font-size: 12px;
+        font-style: italic;
+        font-weight: 400;
+        letter-spacing: 0.03em;
+        text-transform: none;
+        color: color-mix(in srgb, var(--accent) 85%, #fff);
+      }
+
+      .card-blurb {
+        font-family: var(--font-serif);
+        font-size: clamp(12px, 1.1vw, 13.5px);
+        line-height: 1.55;
+        font-weight: 400;
+        color: rgba(244, 239, 230, 0.74);
+        min-height: 3.2em;
+      }
+
+      .card-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 2px;
+      }
+
+      .stat {
+        display: grid;
+        grid-template-columns: 52px 1fr;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .stat-label {
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: rgba(244, 239, 230, 0.55);
+      }
+
+      .stat-track {
+        position: relative;
+        height: 3px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+      }
+
+      .stat-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 0;
+        border-radius: 2px;
+        background: linear-gradient(
+          90deg,
+          color-mix(in srgb, var(--accent) 55%, transparent),
+          var(--accent)
+        );
+        transition: width 1.1s var(--ease-out) calc(var(--i) * 90ms + 350ms);
+      }
+
+      .cards.in .stat-fill {
+        width: var(--v);
+      }
+
+      .card:hover .stat-fill {
+        background: linear-gradient(90deg, var(--accent), #fff2cf);
+      }
+
+      /* ----- hints ----- */
+
+      .menu-hints {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: clamp(14px, 2.4vw, 36px);
+        font-size: clamp(10px, 1vw, 12px);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgba(244, 239, 230, 0.55);
+        animation: rise-in 1.3s var(--ease-out) 0.5s both;
+      }
+
+      .menu-hints kbd,
+      .pause-hints kbd {
+        font-family: inherit;
+        font-size: inherit;
+        font-weight: 600;
+        color: rgba(244, 239, 230, 0.9);
+        padding: 3px 8px;
+        margin-right: 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+      }
+
+      /* ---------------------------------------------------------- */
+      /* In-flight HUD                                              */
+      /* ---------------------------------------------------------- */
+
+      .hud {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 0.9s ease;
+      }
+
+      .hud.on {
+        opacity: 1;
+      }
+
+      .hud.idle {
+        opacity: 0;
+        transition: opacity 1.6s ease;
+      }
+
+      /* Ambient scrim behind the compass cluster. Plain paint — no
+         backdrop-filter involved — so it can never be defeated by a
+         bloom-blown sky the way a filter-based clamp can: blur(white) is
+         still white, and the glass strip alone was washing out on sun-side
+         headings. This veil darkens the backdrop BEFORE the compass glass
+         samples it, guaranteeing the strip and the heading chip a workable
+         floor in any exposure. Feathered wide and shallow so it reads as a
+         cinematic top-center vignette, not a box; lives on .hud, so it
+         shares the HUD's on/idle fades. */
+      .hud::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(760px, 94vw);
+        height: clamp(122px, 17vh, 152px);
+        background: radial-gradient(
+          100% 100% at 50% 0%,
+          rgba(6, 10, 16, 0.5) 0%,
+          rgba(6, 10, 16, 0.32) 48%,
+          transparent 80%
+        );
+        pointer-events: none;
+      }
+
+      .hud-glass {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: linear-gradient(160deg, rgba(14, 20, 26, 0.42), rgba(8, 12, 16, 0.28));
+        backdrop-filter: blur(12px) saturate(1.3);
+        -webkit-backdrop-filter: blur(12px) saturate(1.3);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.1),
+          0 8px 28px rgba(0, 0, 0, 0.25);
+      }
+
+      .hud-metric {
+        position: absolute;
+        bottom: clamp(20px, 4vh, 40px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 12px 22px 10px;
+        min-width: 92px;
+      }
+
+      .hud-speed {
+        left: clamp(20px, 4vw, 48px);
+      }
+
+      .hud-alt {
+        right: clamp(20px, 4vw, 48px);
+      }
+
+      .hud-metric .value {
+        font-size: clamp(26px, 2.6vw, 34px);
+        font-weight: 250;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.04em;
+        line-height: 1.05;
+        color: #fff;
+        text-shadow: 0 1px 10px rgba(0, 0, 0, 0.45);
+      }
+
+      .hud-metric .label {
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.26em;
+        text-indent: 0.26em;
+        text-transform: uppercase;
+        color: rgba(232, 196, 122, 0.85);
+      }
+
+      .hud-species {
+        position: absolute;
+        top: clamp(18px, 3.4vh, 34px);
+        left: clamp(20px, 4vw, 48px);
+        padding: 8px 16px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: rgba(244, 239, 230, 0.85);
+      }
+
+      /* ----- compass ribbon ----- */
+
+      /* The glass strip itself is never masked: an edge-fade mask on this
+         element would clip its backdrop-filter scrim, leaving the ticks at
+         low contrast against a blown sky. The strip renders as a full tile
+         (same treatment as speed/altitude); only the ribbon window inside
+         fades its ends. */
+      .compass {
+        position: absolute;
+        top: clamp(16px, 3vh, 30px);
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(440px, 56vw);
+        height: 46px;
+        overflow: hidden;
+        /* Sun-side override of the shared glass, second line of a layered
+           defense (the first is the plain-paint .hud::before veil, which
+           pre-darkens the backdrop this filter samples). Blurring a blown
+           white sky still yields white, so pull the backdrop's luminance
+           down inside the filter itself (brightness is alpha-independent:
+           it clamps an overexposed sky hard but barely registers over dark
+           terrain), then deepen the scrim a step past the tile family.
+           Worst case — a fully blown #fff sky — the veil takes it to ~#84,
+           the brightness clamp to ~#49, and the scrim lands the panel near
+           #20–#2c: 1px hairline ticks and 11px labels hold AAA contrast. */
+        background: linear-gradient(160deg, rgba(10, 14, 19, 0.68), rgba(5, 8, 12, 0.55));
+        backdrop-filter: blur(14px) saturate(1.2) brightness(0.56) contrast(1.06);
+        -webkit-backdrop-filter: blur(14px) saturate(1.2) brightness(0.56) contrast(1.06);
+      }
+
+      .compass-window {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        border-radius: inherit;
+        -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+        mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+      }
+
+      .compass-ribbon {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        will-change: transform;
+      }
+
+      /* Ticks and labels run a step brighter than the tile text: they are
+         1px hairlines and 11px glyphs, not 34px digits, so they need the
+         extra contrast to survive what bloom leaks through the scrim. */
+      .compass-tick {
+        position: absolute;
+        top: 8px;
+        width: 1px;
+        height: 7px;
+        background: rgba(248, 244, 236, 0.7);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+      }
+
+      .compass-tick.major {
+        height: 12px;
+        background: rgba(255, 252, 245, 0.96);
+      }
+
+      .compass-label {
+        position: absolute;
+        top: 24px;
+        transform: translateX(-50%);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        color: rgba(255, 252, 245, 0.98);
+        text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
+      }
+
+      .compass-label.cardinal {
+        color: var(--gold-bright);
+      }
+
+      .compass-caret {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 6px solid var(--gold);
+        filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+      }
+
+      /* Small glass chip under the strip. Same layered sun-side treatment
+         as the compass: it sits inside the .hud::before veil's footprint,
+         so its backdrop is pre-darkened before the brightness clamp and
+         scrim run, and the near-white digits never drop below the tile
+         digits' contrast even dead-on into the sun. */
+      .compass-heading {
+        position: absolute;
+        top: clamp(60px, 8.6vh, 76px);
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 5px 13px 4px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: linear-gradient(160deg, rgba(10, 14, 19, 0.68), rgba(5, 8, 12, 0.55));
+        backdrop-filter: blur(12px) saturate(1.2) brightness(0.56) contrast(1.06);
+        -webkit-backdrop-filter: blur(12px) saturate(1.2) brightness(0.56) contrast(1.06);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.08),
+          0 6px 20px rgba(0, 0, 0, 0.22);
+        font-size: 11px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.2em;
+        text-indent: 0.2em;
+        color: rgba(255, 252, 245, 0.98);
+        text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
+      }
+
+      /* No-backdrop-filter fallback (GPU contexts that drop the filter):
+         without the blur+brightness clamp the glass family must carry all
+         of its own contrast, so the scrims go near-opaque. */
+      @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        .hud-glass {
+          background: linear-gradient(160deg, rgba(14, 20, 26, 0.82), rgba(8, 12, 16, 0.74));
+        }
+        .compass,
+        .compass-heading {
+          background: linear-gradient(160deg, rgba(10, 14, 19, 0.88), rgba(5, 8, 12, 0.8));
+        }
+      }
+
+      /* ----- stall warning ----- */
+
+      .hud-stall {
+        position: absolute;
+        top: 32%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: clamp(14px, 1.6vw, 19px);
+        font-weight: 600;
+        letter-spacing: 0.55em;
+        text-indent: 0.55em;
+        text-transform: uppercase;
+        color: #ffb163;
+        text-shadow: 0 0 22px rgba(255, 140, 60, 0.55);
+        opacity: 0;
+        transition: opacity 0.25s ease;
+        animation: stall-pulse 1.1s ease-in-out infinite;
+      }
+
+      .hud-stall.on {
+        opacity: 1;
+      }
+
+      @keyframes stall-pulse {
+        0%,
+        100% {
+          filter: brightness(1);
+        }
+        50% {
+          filter: brightness(1.5);
+        }
+      }
+
+      /* ---------------------------------------------------------- */
+      /* Pause overlay                                              */
+      /* ---------------------------------------------------------- */
+
+      .pause {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(16px, 2.6vh, 26px);
+        background: rgba(4, 8, 14, 0.45);
+        backdrop-filter: blur(14px) saturate(1.2);
+        -webkit-backdrop-filter: blur(14px) saturate(1.2);
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          opacity 0.35s ease,
+          visibility 0.35s;
+        z-index: 50;
+      }
+
+      .pause.on {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .pause > .wing-mark {
+        color: var(--gold);
+        opacity: 0.9;
+        filter: drop-shadow(0 0 14px rgba(232, 196, 122, 0.5));
+      }
+
+      .pause-title {
+        margin: 0;
+        font-size: clamp(30px, 4.5vw, 52px);
+        font-weight: 200;
+        letter-spacing: 0.5em;
+        text-indent: 0.5em;
+        text-transform: uppercase;
+        background: linear-gradient(180deg, #fff 20%, var(--gold-bright) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: var(--gold-bright);
+      }
+
+      .pause-species {
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.3em;
+        text-indent: 0.3em;
+        text-transform: uppercase;
+        color: rgba(244, 239, 230, 0.6);
+      }
+
+      .pause-rule {
+        width: 180px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(232, 196, 122, 0.7), transparent);
+      }
+
+      .pause-hints {
+        display: flex;
+        gap: clamp(14px, 2vw, 28px);
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgba(244, 239, 230, 0.55);
+      }
+
+      .pause-actions {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+
+      .pause-resume {
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.28em;
+        text-indent: 0.28em;
+        text-transform: uppercase;
+        color: var(--paper);
+        padding: 14px 42px;
+        border-radius: 999px;
+        border: 1px solid rgba(232, 196, 122, 0.55);
+        background: rgba(232, 196, 122, 0.08);
+        cursor: pointer;
+        transition:
+          background 0.25s ease,
+          box-shadow 0.25s ease,
+          transform 0.25s var(--ease-out);
+      }
+
+      .pause-resume:hover,
+      .pause-resume:focus-visible {
+        background: rgba(232, 196, 122, 0.2);
+        box-shadow: 0 0 34px rgba(232, 196, 122, 0.25);
+        transform: translateY(-2px);
+        outline: none;
+      }
+
+      .pause-change-bird {
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.24em;
+        text-indent: 0.24em;
+        text-transform: uppercase;
+        color: rgba(244, 239, 230, 0.6);
+        padding: 13px 26px;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 239, 230, 0.22);
+        background: transparent;
+        cursor: pointer;
+        transition:
+          color 0.25s ease,
+          border-color 0.25s ease,
+          transform 0.25s var(--ease-out);
+      }
+
+      .pause-change-bird:hover,
+      .pause-change-bird:focus-visible {
+        color: var(--paper);
+        border-color: rgba(244, 239, 230, 0.5);
+        transform: translateY(-2px);
+        outline: none;
+      }
+
+      .pause-hint {
+        font-size: 10px;
+        letter-spacing: 0.24em;
+        text-indent: 0.24em;
+        text-transform: uppercase;
+        color: rgba(244, 239, 230, 0.4);
+      }
+
+      /* ---------------------------------------------------------- */
+      /* Small screens                                              */
+      /* ---------------------------------------------------------- */
+
+      @media (max-width: 900px) {
+        .cards {
+          gap: 8px;
+        }
+        .card-blurb {
+          /* Too narrow for the serif blurb to breathe — name and stats carry
+             the card; the blurb returns on wider screens. */
+          display: none;
+        }
+        .stat {
+          grid-template-columns: 44px 1fr;
+          gap: 8px;
+        }
+        .stat-label {
+          font-size: 8px;
+        }
+        .hud-metric {
+          min-width: 74px;
+          padding: 10px 16px 8px;
+        }
+      }
+
+      /* Phone widths: five cards cannot legibly share one row, so the row
+         becomes a horizontal snap-scroller. The row height stays constant —
+         the stat bars still never leave the viewport. */
+      @media (max-width: 640px) {
+        .cards {
+          justify-content: flex-start;
+          overflow-x: auto;
+          scroll-snap-type: x proximity;
+          padding: 4px 8vw 12px;
+          scrollbar-width: none;
+        }
+        .cards::-webkit-scrollbar {
+          display: none;
+        }
+        .card {
+          flex: 0 0 min(200px, 58vw);
+          scroll-snap-align: center;
+        }
+        .card-blurb {
+          display: none;
+        }
+      }
+
+      /* ---------------------------------------------------------- */
+      /* Short viewports — compress the menu column so the card row */
+      /* (and its stat bars) never clips at the viewport bottom.    */
+      /* ---------------------------------------------------------- */
+
+      @media (max-height: 760px) {
+        .menu-mark {
+          margin-bottom: 6px;
+        }
+        .menu-mark .wing-mark {
+          width: 44px;
+          height: 22px;
+        }
+        .menu-eyebrow {
+          margin-bottom: 8px;
+        }
+        .menu-rule {
+          margin-top: 10px;
+        }
+        .menu-sub {
+          margin-top: 7px;
+        }
+        .card {
+          gap: 8px;
+          padding: 14px 16px 13px;
+          border-radius: 15px;
+        }
+        .card-blurb {
+          min-height: 0;
+          line-height: 1.45;
+        }
+        .card-stats {
+          gap: 6px;
+        }
+      }
+
+      @media (max-height: 620px) {
+        .menu-mark {
+          display: none;
+        }
+        .menu-eyebrow {
+          margin-bottom: 5px;
+        }
+        .card-blurb {
+          display: none;
+        }
+        .card-glyph .wing-mark {
+          width: 32px;
+          height: 16px;
+        }
+        .menu-hints {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="ui"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
